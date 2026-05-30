@@ -1,0 +1,217 @@
+import { useMemo, useState } from 'react'
+import type { AnswerOut, DiagnosisReport, Leaderboard, LeaderboardRow } from '../types'
+import { countText, pct, platformBadge, rankText, sentimentText } from '../format'
+
+// —— 客户端按平台重新聚合榜单，支撑「全部平台 / 单平台」下拉筛选 ——
+const norm = (s: string) => s.trim().toLowerCase().replace(/\s/g, '')
+const sameBrand = (a: string, b: string) => {
+  const na = norm(a)
+  const nb = norm(b)
+  if (!na || !nb) return false
+  return na === nb || na.includes(nb) || nb.includes(na)
+}
+
+function buildLeaderboard(answers: AnswerOut[], target: string, platform: string): Leaderboard {
+  const filtered = platform === '全部平台' ? answers : answers.filter((a) => a.platform === platform)
+  const total = filtered.length
+  const map = new Map<string, { brand: string; answers: Set<number>; count: number; ranks: number[] }>()
+
+  filtered.forEach((a, idx) => {
+    const seen = new Set<string>()
+    a.brands.forEach((b, pos) => {
+      const k = norm(b)
+      if (!k) return
+      if (!map.has(k)) map.set(k, { brand: b.trim(), answers: new Set(), count: 0, ranks: [] })
+      const e = map.get(k)!
+      e.count += 1
+      e.ranks.push(pos + 1)
+      seen.add(k)
+    })
+    seen.forEach((k) => map.get(k)!.answers.add(idx))
+  })
+
+  const rows: LeaderboardRow[] = [...map.values()].map((e) => ({
+    brand: e.brand,
+    mention_rate: total ? e.answers.size / total : 0,
+    mention_count: e.count,
+    avg_rank: e.ranks.length ? e.ranks.reduce((x, y) => x + y, 0) / e.ranks.length : null,
+    is_target: sameBrand(e.brand, target),
+  }))
+
+  const byRate = [...rows].sort((a, b) => b.mention_rate - a.mention_rate || b.mention_count - a.mention_count).slice(0, 10)
+  const byCount = [...rows].sort((a, b) => b.mention_count - a.mention_count || b.mention_rate - a.mention_rate).slice(0, 10)
+  const byAvgRank = [...rows]
+    .sort((a, b) => (a.avg_rank ?? 1e9) - (b.avg_rank ?? 1e9) || b.mention_rate - a.mention_rate)
+    .slice(0, 10)
+
+  return { by_rate: byRate, by_count: byCount, by_avg_rank: byAvgRank }
+}
+
+function BarList({ rows, kind }: { rows: LeaderboardRow[]; kind: 'rate' | 'count' }) {
+  const max = Math.max(...rows.map((r) => (kind === 'rate' ? r.mention_rate : r.mention_count)), 1e-9)
+  return (
+    <div className="bar-list">
+      {rows.map((r, i) => {
+        const v = kind === 'rate' ? r.mention_rate : r.mention_count
+        const w = Math.max(2, (v / max) * 100)
+        return (
+          <div className="bar-row" key={r.brand}>
+            <span className="bar-rank">{i + 1}</span>
+            <span className={`bar-name ${r.is_target ? 'target' : ''}`}>{r.brand}</span>
+            <span className="bar-track">
+              <span className={`bar-fill ${r.is_target ? 'purple' : 'blue'}`} style={{ width: `${w}%` }} />
+            </span>
+            <span className="bar-val">{kind === 'rate' ? pct(r.mention_rate) : r.mention_count}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function ReportView({ report }: { report: DiagnosisReport }) {
+  const platformOptions = ['全部平台', ...report.platforms]
+  const [platform, setPlatform] = useState('全部平台')
+  const [showQa, setShowQa] = useState(false)
+
+  const lb = useMemo(
+    () => buildLeaderboard(report.answers, report.brand, platform),
+    [report.answers, report.brand, platform],
+  )
+
+  return (
+    <div className="report">
+      {/* AI 问题 */}
+      <section className="report-sec">
+        <div className="sec-label">AI问题</div>
+        <div className="questions">
+          {report.questions.map((q, i) => (
+            <div className="q-chip" key={i} title={q}>
+              <span className="q-index">{i + 1}</span>
+              <span className="q-text">{q}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 各平台表现 */}
+      <section className="platform-grid">
+        {report.platform_metrics.map((p) => {
+          const badge = platformBadge(p.platform)
+          return (
+            <div className="platform-card" key={p.platform}>
+              <div className="pf-head">
+                <span className="pf-avatar" style={{ background: badge.color }}>
+                  {badge.label}
+                </span>
+                <span className="pf-name">{p.platform}</span>
+              </div>
+              <div className="pf-row">
+                <span>品牌提及率</span>
+                <b>{pct(p.mention_rate)}</b>
+              </div>
+              <div className="pf-row">
+                <span>品牌提及次数</span>
+                <b>{countText(p.mention_count)}</b>
+              </div>
+              <div className="pf-row">
+                <span>平均提及排名</span>
+                <b>{rankText(p.avg_rank)}</b>
+              </div>
+            </div>
+          )
+        })}
+      </section>
+
+      {/* 品牌表现 */}
+      <section className="brand-perf">
+        <div className="perf-head">
+          <h3>品牌表现</h3>
+          <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
+            {platformOptions.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="lb-grid">
+          <div className="lb-col">
+            <h4>品牌提及率</h4>
+            <BarList rows={lb.by_rate} kind="rate" />
+          </div>
+          <div className="lb-col">
+            <h4>品牌提及次数</h4>
+            <BarList rows={lb.by_count} kind="count" />
+          </div>
+          <div className="lb-col">
+            <h4>平均提及排名</h4>
+            <table className="rank-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>品牌</th>
+                  <th>提及率</th>
+                  <th>平均排名</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lb.by_avg_rank.map((r, i) => (
+                  <tr key={r.brand} className={r.is_target ? 'target' : ''}>
+                    <td>{i + 1}</td>
+                    <td>{r.brand}</td>
+                    <td>{pct(r.mention_rate)}</td>
+                    <td>{rankText(r.avg_rank)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* AI 问题与回答详情 */}
+      <section className="qa-sec">
+        <button className="qa-toggle" onClick={() => setShowQa((v) => !v)}>
+          {showQa ? '收起回答详情 ▲' : `展开 AI 问题与回答详情（${report.answers.length}）▼`}
+        </button>
+        {showQa && (
+          <div className="qa-wrap">
+            <table className="qa-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>问题</th>
+                  <th>平台</th>
+                  <th>是否提及</th>
+                  <th>排名</th>
+                  <th>情感</th>
+                  <th>回答摘要</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.answers.map((a, i) => (
+                  <tr key={i} className={a.mentioned ? 'hit' : ''}>
+                    <td>{i + 1}</td>
+                    <td className="qa-q" title={a.question}>
+                      {a.question}
+                    </td>
+                    <td>{a.platform}</td>
+                    <td>{a.mentioned ? '是' : '否'}</td>
+                    <td>{a.rank ?? '-'}</td>
+                    <td>{a.mentioned ? sentimentText(a.sentiment) : '-'}</td>
+                    <td className="qa-text" title={a.text}>
+                      {a.text.replace(/\s+/g, ' ').slice(0, 80)}
+                      {a.text.length > 80 ? '…' : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}

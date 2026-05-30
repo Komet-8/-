@@ -1,0 +1,19 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.db
+.env
+.env.local
+
+# ===== Node / 前端 =====
+node_modules/
+dist/
+.vite/
+
+# ===== 杂项 =====
+.DS_Store
+*.log
+.idea/
+.vscode/
