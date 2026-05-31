@@ -104,7 +104,33 @@ def run_diagnosis(
     with ThreadPoolExecutor(max_workers=workers) as pool:
         answers = list(pool.map(_run_one, tasks))
 
-    # —— 聚合指标 ——
+    # 运行单元名列表（按 targets 顺序，去重）
+    platform_keys: list[str] = []
+    for t in targets:
+        key = run_key(t["platform"], t.get("channel", "手机"))
+        if key not in platform_keys:
+            platform_keys.append(key)
+
+    return assemble_report(
+        brand=brand,
+        industry=resolved_industry or industry,
+        provider_name=provider.name if provider else "mock",
+        questions=questions,
+        answers=answers,
+        platform_keys=platform_keys,
+    )
+
+
+def assemble_report(
+    *,
+    brand: str,
+    industry: str | None,
+    provider_name: str,
+    questions: list[dict],
+    answers: list[dict],
+    platform_keys: list[str],
+) -> dict:
+    """把逐条 answers 聚合成完整报告。同步路径与 worker 回传路径共用。"""
     metrics = scoring.aggregate_metrics(brand, answers)
     sov = scoring.share_of_voice(brand, answers)
     score = scoring.brand_score(metrics, sov)
@@ -113,17 +139,10 @@ def run_diagnosis(
     citations = sources_mod.aggregate_citations(answers)
     conversations = _build_conversations(questions, answers)
 
-    # 运行单元名列表（按 targets 顺序，去重）
-    platform_keys: list[str] = []
-    for t in targets:
-        key = run_key(t["platform"], t.get("channel", "手机"))
-        if key not in platform_keys:
-            platform_keys.append(key)
-
     return {
         "brand": brand,
-        "industry": resolved_industry or industry,
-        "provider": provider.name if provider else "mock",
+        "industry": industry,
+        "provider": provider_name,
         "brand_score": score,
         "mention_rate": metrics["mention_rate"],
         "avg_rank": metrics["avg_rank"],

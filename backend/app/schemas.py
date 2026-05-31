@@ -131,3 +131,39 @@ class ConfigOut(BaseModel):
     model: str
     platforms: list[PlatformInfo]
     num_questions: int
+
+
+# —— 任务队列（本地 worker 协同）——
+class BatchCreate(BaseModel):
+    brand: str = Field(..., min_length=1)
+    industry: str | None = None
+    targets: list[PlatformTarget] | None = None
+    num_questions: int | None = Field(None, ge=1, le=15)
+
+
+class BatchStatus(BaseModel):
+    batch_id: str
+    brand: str
+    total: int
+    done: int
+    errored: int
+    finished: bool
+    diagnosis_id: int | None
+
+
+class JobOut(BaseModel):
+    id: str
+    platform: str
+    channel: str
+    thinking: bool
+    question: str
+
+
+class IngestIn(BaseModel):
+    job_id: str
+    text: str
+    sources: list[dict] = []
+    # 下面字段 worker 会带上，但后端以 job 记录为准，仅作核对/日志
+    platform: str | None = None
+    channel: str | None = None
+    question: str | None = None

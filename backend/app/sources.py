@@ -164,6 +164,17 @@ def extract_sources_from_text(text: str) -> list[dict[str, Any]]:
     return out
 
 
+def normalize_source(raw: dict[str, Any]) -> dict[str, Any]:
+    """把 worker 抓到的原始来源（site 可能是整条 URL）规整为标准结构。"""
+    url = raw.get("url") or raw.get("site") or ""
+    host = urlparse(url).netloc if url.startswith("http") else (raw.get("site") or "")
+    host = host.replace("www.", "")
+    site = host or (raw.get("site") or "未知来源")
+    category = raw.get("category") or categorize(site)
+    title = (raw.get("title") or "").strip() or site
+    return {"site": site, "category": category, "url": url, "title": title}
+
+
 def aggregate_citations(answers: list[dict[str, Any]], limit: int = 30) -> list[dict[str, Any]]:
     """把逐条来源聚合成引用来源榜单。"""
     by_site: dict[str, dict[str, Any]] = {}

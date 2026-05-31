@@ -16,12 +16,18 @@ from .database import get_session, init_db
 from .models import Diagnosis
 from .providers import build_provider, default_targets, platform_registry
 from .schemas import (
+    BatchCreate,
+    BatchStatus,
     ConfigOut,
     DiagnoseRequest,
     DiagnosisReport,
     DiagnosisSummary,
+    IngestIn,
+    JobOut,
 )
 from .services.diagnosis import run_diagnosis
+from .services.jobs import queue
+from .services.questions import generate_questions
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -165,6 +171,65 @@ def delete_diagnosis(diagnosis_id: int, session: Session = Depends(get_session))
     session.delete(d)
     session.commit()
     return {"deleted": diagnosis_id}
+
+
+# ============================================================= #
+# 任务队列：本地浏览器 worker 协同（"像爱搜一样"的真实抓取路径）   #
+# ============================================================= #
+@app.post("/api/batches", response_model=BatchStatus)
+def create_batch(req: BatchCreate) -> dict:
+    """创建抓取批次：后端生成问题 + 建 jobs，交给本地 worker 抓取。"""
+    provider = build_provider(settings)
+    targets = (
+        [t.model_dump() for t in req.targets]
+        if req.targets
+        else default_targets(settings)
+    )
+    n = req.num_questions or settings.num_questions
+    resolved_industry, questions = generate_questions(
+        req.brand.strip(), (req.industry or "").strip() or None, n, provider
+    )
+    batch = queue.create_batch(
+        brand=req.brand.strip(),
+        industry=resolved_industry or (req.industry or None),
+        questions=questions,
+        targets=targets,
+    )
+    return queue.batch_status(batch.id)  # type: ignore[return-value]
+
+
+@app.get("/api/jobs/next")
+def next_job():
+    """worker 领取下一个待抓取 job；无任务时返回 204。"""
+    from fastapi import Response
+
+    job = queue.lease_next()
+    if not job:
+        return Response(status_code=204)
+    return JobOut(
+        id=job.id, platform=job.platform, channel=job.channel,
+        thinking=job.thinking, question=job.question,
+    )
+
+
+@app.post("/api/ingest")
+def ingest(payload: IngestIn) -> dict:
+    """worker 回传抓取结果；后端分析该条，批次完成时自动落库。"""
+    provider = build_provider(settings)
+    try:
+        return queue.ingest(
+            payload.job_id, text=payload.text, sources=payload.sources, provider=provider
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="job 不存在")
+
+
+@app.get("/api/batches/{batch_id}", response_model=BatchStatus)
+def batch_status(batch_id: str) -> dict:
+    st = queue.batch_status(batch_id)
+    if not st:
+        raise HTTPException(status_code=404, detail="批次不存在")
+    return st
 
 
 # —— 生产环境下，若前端已构建则一并托管 ——

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mock Chat (worker selftest)</title>
+  <style>
+    body { font-family: sans-serif; max-width: 720px; margin: 30px auto; }
+    #answer { border: 1px solid #ddd; padding: 16px; margin-top: 16px; min-height: 60px; }
+    .thinking-toggle { padding: 4px 12px; border: 1px solid #88f; border-radius: 999px; cursor: pointer; }
+    .thinking-toggle.active { background: #eef; font-weight: bold; }
+    textarea { width: 100%; height: 60px; }
+  </style>
+</head>
+<body>
+  <h3>Mock Chat —— 仅用于 worker 离线自测</h3>
+
+  <!-- 模拟「深度思考」开关：点击切换 active 类 -->
+  <span class="thinking-toggle" onclick="this.classList.toggle('active')">深度思考</span>
+
+  <textarea placeholder="输入问题…"></textarea>
+  <div id="controls"></div>
+
+  <!-- 回答容器：选择器对应 selectors.json 里的 answer -->
+  <div id="answer" class="markdown"></div>
+
+  <script>
+    const ta = document.querySelector('textarea')
+    const answer = document.getElementById('answer')
+    const controls = document.getElementById('controls')
+
+    function send() {
+      const q = ta.value.trim()
+      if (!q) return
+      answer.innerHTML = ''  // 清空上一轮
+
+      // 模拟「生成中」：显示一个文案含「停止」的按钮，2 秒后移除
+      const stop = document.createElement('button')
+      stop.textContent = '停止生成'
+      controls.appendChild(stop)
+
+      setTimeout(() => {
+        stop.remove()
+        // 写入一段带「编号列表」和「引用链接」的回答，结构贴近真实 AI 输出
+        answer.innerHTML = `
+          <p>针对「${q}」，推荐如下：</p>
+          <ol>
+            <li>北京大学口腔医院：综合实力强。</li>
+            <li>瑞泰口腔：连锁口碑稳定。</li>
+            <li>四川大学华西口腔医院：技术领先。</li>
+          </ol>
+          <p>参考来源：
+            <a href="https://www.xinhuanet.com/a">新华网</a>、
+            <a href="https://zhuanlan.zhihu.com/p/1">知乎</a>
+          </p>`
+      }, 1500)
+    }
+
+    // Enter 发送（对应 send_key=Enter）
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+    })
+  </script>
+</body>
+</html>
