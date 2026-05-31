@@ -15,6 +15,10 @@ export const countText = (n: number): string => (n > 0 ? `${n}次` : '未提及'
 export const sentimentText = (s: string): string =>
   ({ positive: '正面', neutral: '中性', negative: '负面' }[s] ?? s)
 
+/** 问题热度：>=10000 显示 N.Nw，否则原数。 */
+export const heatText = (n: number): string =>
+  n >= 10000 ? `${(n / 10000).toFixed(1)}w` : `${n}`
+
 export function formatDateTime(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
@@ -24,12 +28,30 @@ export function formatDateTime(iso: string): string {
   )}:${p(d.getSeconds())}`
 }
 
-/** 平台展示样式（头像文字 + 颜色），对齐截图里的豆包/DeepSeek/千问。 */
-export function platformBadge(name: string): { label: string; color: string } {
-  const map: Record<string, { label: string; color: string }> = {
-    豆包: { label: '豆', color: '#3b82f6' },
-    DeepSeek: { label: 'DS', color: '#4f46e5' },
-    千问: { label: '千', color: '#7c3aed' },
-  }
-  return map[name] ?? { label: name.slice(0, 2), color: '#6b7280' }
+/** 平台展示样式（头像文字 + 颜色）。先用注册表，回退到名字推断。 */
+const FALLBACK: Record<string, { label: string; color: string }> = {
+  豆包: { label: '豆', color: '#3b82f6' },
+  DeepSeek: { label: 'DS', color: '#4f46e5' },
+  元宝: { label: '元', color: '#12b76a' },
+  千问: { label: '千', color: '#615ced' },
+  百度AI: { label: '百', color: '#7c5cfc' },
+  文心: { label: '文', color: '#3b82f6' },
+  Kimi: { label: 'Km', color: '#111827' },
+  AI抖音: { label: '抖', color: '#111827' },
+}
+
+export function platformBadge(runKey: string): { label: string; color: string } {
+  const name = runKey.split('·')[0]
+  return FALLBACK[name] ?? { label: name.slice(0, 2), color: '#6b7280' }
+}
+
+/** 网站分类的标签底色。 */
+export function categoryColor(cat: string): string {
+  if (cat.includes('政府')) return '#fee2e2'
+  if (cat.includes('央媒') || cat.includes('媒体')) return '#dbeafe'
+  if (cat.includes('教育')) return '#e0e7ff'
+  if (cat.includes('视频')) return '#fce7f3'
+  if (cat.includes('社区')) return '#fef3c7'
+  if (cat.includes('门户')) return '#dcfce7'
+  return '#f3e8ff'
 }

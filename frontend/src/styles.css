@@ -634,3 +634,364 @@ body {
     gap: 16px;
   }
 }
+
+/* ============================================================= */
+/* v0.2 新增：平台卡片选择网格 + 引用来源 + AI对话记录            */
+/* ============================================================= */
+
+/* —— 品牌输入行 —— */
+.brand-input-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #f7f8fb;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+.brand-input-label {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.brand-input-row input {
+  flex: 1;
+  height: 38px;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  outline: none;
+}
+
+/* —— 平台卡片网格 —— */
+.pf-cards {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.pf-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+.pf-card-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  margin-top: -26px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.pf-card-name {
+  font-weight: 600;
+  font-size: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  width: 100%;
+  text-align: center;
+}
+.pf-channel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.pf-radio {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pf-think {
+  border: 1px solid #d8dcff;
+  background: #f5f6ff;
+  color: #6d6fd6;
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 2px 10px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.pf-think.on {
+  opacity: 1;
+  border-color: var(--blue);
+  color: var(--blue);
+  background: #eef5ff;
+}
+.pf-note {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  background: #fff5e6;
+  color: #d97706;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+/* —— 表单操作行 —— */
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+}
+.select-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.targets-hint {
+  margin: 12px 0 0;
+  text-align: right;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* —— AI问题 意图 + 热度标签 —— */
+.q-intent {
+  font-size: 11px;
+  background: #fdeef0;
+  color: #e0567a;
+  padding: 1px 6px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+.q-heat {
+  font-size: 11px;
+  color: #f97316;
+  flex-shrink: 0;
+}
+
+/* —— 底部双栏：引用来源 + AI对话记录 —— */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.bottom-grid h3 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+.cite-col,
+.conv-col {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+}
+.empty-sm {
+  color: var(--muted);
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* 引用来源条目 */
+.cite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 420px;
+  overflow: auto;
+}
+.cite-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.cite-favicon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #6b21a8;
+  flex-shrink: 0;
+}
+.cite-main {
+  flex: 1;
+  min-width: 0;
+}
+.cite-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cite-cat {
+  font-size: 11px;
+  color: #6b21a8;
+  padding: 1px 7px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+.cite-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cite-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.cite-link {
+  font-size: 12px;
+  color: var(--primary-strong);
+  background: var(--primary-soft);
+  padding: 5px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+/* AI对话记录 */
+.conv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 420px;
+  overflow: auto;
+}
+.conv-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.conv-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.conv-q {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.conv-intent {
+  font-size: 11px;
+  background: #fdeef0;
+  color: #e0567a;
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+.conv-qtext {
+  font-size: 14px;
+  font-weight: 600;
+}
+.conv-heat {
+  font-size: 11px;
+  color: #f97316;
+}
+.conv-detail-btn {
+  border: none;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  border-radius: 8px;
+  font-size: 12px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.conv-brands {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.conv-brands-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.conv-none {
+  color: var(--muted);
+}
+.conv-brand-chip {
+  font-size: 12px;
+  background: #eef5ff;
+  color: #2563eb;
+  padding: 2px 9px;
+  border-radius: 6px;
+}
+.conv-answers {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.conv-answer {
+  background: #fafbfe;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.conv-answer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ca-platform {
+  font-weight: 600;
+  font-size: 13px;
+}
+.ca-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+.ca-tag.doubao {
+  background: #e8f7ee;
+  color: var(--green);
+}
+.ca-tag.mock {
+  background: #fff5e6;
+  color: #d97706;
+}
+.ca-hit {
+  font-size: 11px;
+  color: var(--green);
+}
+.ca-miss {
+  font-size: 11px;
+  color: var(--muted);
+}
+.conv-answer-text {
+  font-size: 12.5px;
+  color: #4b5563;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow: auto;
+}
+
+@media (max-width: 1000px) {
+  .pf-cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}

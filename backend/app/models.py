@@ -22,11 +22,13 @@ class Diagnosis(SQLModel, table=True):
     mention_count: int = 0          # 品牌提及次数
     sentiment_score: float = 0.0    # 正面/中性情感占比 0~1
     total_questions: int = 0
-    total_answers: int = 0          # 问题数 × 平台数
+    total_answers: int = 0          # 问题数 × 运行单元数
 
     # —— 明细（JSON）——
-    questions: list = Field(default_factory=list, sa_column=Column(JSON))
-    platforms: list = Field(default_factory=list, sa_column=Column(JSON))
+    questions: list = Field(default_factory=list, sa_column=Column(JSON))        # [{text,intent,heat}]
+    platforms: list = Field(default_factory=list, sa_column=Column(JSON))        # 运行单元名列表，如 ["豆包·手机", ...]
     platform_metrics: list = Field(default_factory=list, sa_column=Column(JSON))
     leaderboard: dict = Field(default_factory=dict, sa_column=Column(JSON))
     answers: list = Field(default_factory=list, sa_column=Column(JSON))
+    citations: list = Field(default_factory=list, sa_column=Column(JSON))        # 引用来源榜单
+    conversations: list = Field(default_factory=list, sa_column=Column(JSON))    # AI对话记录（按问题分组）

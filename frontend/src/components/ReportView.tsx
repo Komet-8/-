@@ -1,6 +1,20 @@
 import { useMemo, useState } from 'react'
-import type { AnswerOut, DiagnosisReport, Leaderboard, LeaderboardRow } from '../types'
-import { countText, pct, platformBadge, rankText, sentimentText } from '../format'
+import type {
+  AnswerOut,
+  ConversationRecord,
+  DiagnosisReport,
+  Leaderboard,
+  LeaderboardRow,
+} from '../types'
+import {
+  categoryColor,
+  countText,
+  heatText,
+  pct,
+  platformBadge,
+  rankText,
+  sentimentText,
+} from '../format'
 
 // —— 客户端按平台重新聚合榜单，支撑「全部平台 / 单平台」下拉筛选 ——
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s/g, '')
@@ -69,10 +83,55 @@ function BarList({ rows, kind }: { rows: LeaderboardRow[]; kind: 'rate' | 'count
   )
 }
 
+function ConversationItem({ rec }: { rec: ConversationRecord }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="conv-item">
+      <div className="conv-head">
+        <div className="conv-q">
+          <span className="conv-intent">{rec.intent}</span>
+          <span className="conv-qtext">{rec.question}</span>
+          <span className="conv-heat">🔥 {heatText(rec.heat)}</span>
+        </div>
+        <button className="conv-detail-btn" onClick={() => setOpen((v) => !v)}>
+          {open ? '收起' : 'AI对话详情'}
+        </button>
+      </div>
+      <div className="conv-brands">
+        <span className="conv-brands-label">提及品牌：</span>
+        {rec.mentioned_brands.length === 0 && <span className="conv-none">—</span>}
+        {rec.mentioned_brands.slice(0, 6).map((b) => (
+          <span className="conv-brand-chip" key={b}>
+            {b}
+          </span>
+        ))}
+        {rec.mentioned_brands.length > 6 && <span className="conv-brand-chip">…</span>}
+      </div>
+      {open && (
+        <div className="conv-answers">
+          {rec.answers.map((a, i) => (
+            <div className="conv-answer" key={i}>
+              <div className="conv-answer-head">
+                <span className="ca-platform">{a.platform}</span>
+                <span className={`ca-tag ${a.engine}`}>{a.engine === 'doubao' ? '真实' : '模拟'}</span>
+                {a.mentioned ? (
+                  <span className="ca-hit">命中 · 第{a.rank ?? '-'}名 · {sentimentText(a.sentiment)}</span>
+                ) : (
+                  <span className="ca-miss">未提及</span>
+                )}
+              </div>
+              <div className="conv-answer-text">{a.text}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ReportView({ report }: { report: DiagnosisReport }) {
   const platformOptions = ['全部平台', ...report.platforms]
   const [platform, setPlatform] = useState('全部平台')
-  const [showQa, setShowQa] = useState(false)
 
   const lb = useMemo(
     () => buildLeaderboard(report.answers, report.brand, platform),
@@ -81,20 +140,22 @@ export function ReportView({ report }: { report: DiagnosisReport }) {
 
   return (
     <div className="report">
-      {/* AI 问题 */}
+      {/* AI 问题（含意图标签 + 热度） */}
       <section className="report-sec">
         <div className="sec-label">AI问题</div>
         <div className="questions">
           {report.questions.map((q, i) => (
-            <div className="q-chip" key={i} title={q}>
+            <div className="q-chip" key={i} title={q.text}>
               <span className="q-index">{i + 1}</span>
-              <span className="q-text">{q}</span>
+              <span className="q-text">{q.text}</span>
+              <span className="q-intent">{q.intent}</span>
+              <span className="q-heat">🔥{heatText(q.heat)}</span>
             </div>
           ))}
         </div>
       </section>
 
-      {/* 各平台表现 */}
+      {/* 各平台运行单元表现 */}
       <section className="platform-grid">
         {report.platform_metrics.map((p) => {
           const badge = platformBadge(p.platform)
@@ -171,46 +232,46 @@ export function ReportView({ report }: { report: DiagnosisReport }) {
         </div>
       </section>
 
-      {/* AI 问题与回答详情 */}
-      <section className="qa-sec">
-        <button className="qa-toggle" onClick={() => setShowQa((v) => !v)}>
-          {showQa ? '收起回答详情 ▲' : `展开 AI 问题与回答详情（${report.answers.length}）▼`}
-        </button>
-        {showQa && (
-          <div className="qa-wrap">
-            <table className="qa-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>问题</th>
-                  <th>平台</th>
-                  <th>是否提及</th>
-                  <th>排名</th>
-                  <th>情感</th>
-                  <th>回答摘要</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.answers.map((a, i) => (
-                  <tr key={i} className={a.mentioned ? 'hit' : ''}>
-                    <td>{i + 1}</td>
-                    <td className="qa-q" title={a.question}>
-                      {a.question}
-                    </td>
-                    <td>{a.platform}</td>
-                    <td>{a.mentioned ? '是' : '否'}</td>
-                    <td>{a.rank ?? '-'}</td>
-                    <td>{a.mentioned ? sentimentText(a.sentiment) : '-'}</td>
-                    <td className="qa-text" title={a.text}>
-                      {a.text.replace(/\s+/g, ' ').slice(0, 80)}
-                      {a.text.length > 80 ? '…' : ''}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* 引用来源 + AI对话记录 双栏 */}
+      <section className="bottom-grid">
+        <div className="cite-col">
+          <h3>引用来源</h3>
+          <div className="cite-list">
+            {report.citations.length === 0 && <div className="empty-sm">暂无引用来源</div>}
+            {report.citations.slice(0, 12).map((c, i) => (
+              <div className="cite-item" key={i}>
+                <span className="cite-favicon" style={{ background: categoryColor(c.category) }}>
+                  {c.site.slice(0, 1)}
+                </span>
+                <div className="cite-main">
+                  <div className="cite-title-row">
+                    <span className="cite-cat" style={{ background: categoryColor(c.category) }}>
+                      {c.category}
+                    </span>
+                    <span className="cite-title">{c.title}</span>
+                  </div>
+                  <div className="cite-sub">
+                    引用AI问题：{c.questions} · 引用次数：{c.cite_count} · 平台：{c.platforms.join('、')}
+                  </div>
+                </div>
+                {c.url && (
+                  <a className="cite-link" href={c.url} target="_blank" rel="noreferrer">
+                    原文
+                  </a>
+                )}
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+
+        <div className="conv-col">
+          <h3>AI对话记录</h3>
+          <div className="conv-list">
+            {report.conversations.map((rec, i) => (
+              <ConversationItem rec={rec} key={i} />
+            ))}
+          </div>
+        </div>
       </section>
     </div>
   )

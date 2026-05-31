@@ -14,7 +14,7 @@ from sqlmodel import Session, select
 from .config import get_settings
 from .database import get_session, init_db
 from .models import Diagnosis
-from .providers import available_platforms, build_provider
+from .providers import build_provider, default_targets, platform_registry
 from .schemas import (
     ConfigOut,
     DiagnoseRequest,
@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="GEO 品牌诊断 / 报告 API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="GEO 品牌诊断 / 报告 API", version="0.2.0", lifespan=lifespan)
 
 # 导入即建表，兼容 uvicorn 启动与 TestClient（后者默认不触发 lifespan）。
 init_db()
@@ -61,7 +61,7 @@ def get_config() -> ConfigOut:
         mock=not settings.use_real_provider,
         provider="doubao" if settings.use_real_provider else "mock",
         model=settings.ark_model if settings.use_real_provider else "mock",
-        platforms_available=available_platforms(settings),
+        platforms=platform_registry(settings),
         num_questions=settings.num_questions,
     )
 
@@ -85,16 +85,23 @@ def _to_report(d: Diagnosis) -> dict:
         "platform_metrics": d.platform_metrics,
         "leaderboard": d.leaderboard,
         "answers": d.answers,
+        "citations": d.citations,
+        "conversations": d.conversations,
     }
 
 
 @app.post("/api/diagnose", response_model=DiagnosisReport)
 def diagnose(req: DiagnoseRequest, session: Session = Depends(get_session)) -> dict:
     provider = build_provider(settings)
+    targets = (
+        [t.model_dump() for t in req.targets]
+        if req.targets
+        else default_targets(settings)
+    )
     report = run_diagnosis(
         brand=req.brand.strip(),
         industry=(req.industry or "").strip() or None,
-        platforms=req.platforms,
+        targets=targets,
         num_questions=req.num_questions,
         provider=provider,
         settings=settings,
@@ -116,6 +123,8 @@ def diagnose(req: DiagnoseRequest, session: Session = Depends(get_session)) -> d
         platform_metrics=report["platform_metrics"],
         leaderboard=report["leaderboard"],
         answers=report["answers"],
+        citations=report["citations"],
+        conversations=report["conversations"],
     )
     session.add(record)
     session.commit()

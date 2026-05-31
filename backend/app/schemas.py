@@ -6,22 +6,39 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+# —— 请求 ——
+class PlatformTarget(BaseModel):
+    platform: str = Field(..., description="平台名，如 豆包 / DeepSeek")
+    channel: str = Field("手机", description="渠道：网页 / 手机")
+    thinking: bool = Field(True, description="是否开启 思考/深度思考")
+
+
 class DiagnoseRequest(BaseModel):
     brand: str = Field(..., min_length=1, description="品牌名称")
     industry: str | None = Field(None, description="行业（可选，留空则由 AI 推断）")
-    platforms: list[str] | None = Field(None, description="要诊断的 AI 平台，留空则用全部可用平台")
+    targets: list[PlatformTarget] | None = Field(None, description="要诊断的平台运行单元；留空用默认")
     num_questions: int | None = Field(None, ge=1, le=15, description="生成的问题数量")
-    deep_thinking: bool = Field(False, description="是否开启深度思考")
+    deep_thinking: bool = Field(True, description="全局深度思考开关")
+
+
+# —— 响应 ——
+class QuestionItem(BaseModel):
+    text: str
+    intent: str          # 对比/选择 | 咨询/查询
+    heat: int            # 问题热度（搜索量近似）
 
 
 class AnswerOut(BaseModel):
     question: str
-    platform: str
+    platform: str        # 运行单元名，如 「豆包·手机」
+    channel: str = "手机"
+    engine: str = "mock"  # doubao | mock
     text: str
     mentioned: bool
     rank: int | None
-    sentiment: str  # positive | neutral | negative
+    sentiment: str       # positive | neutral | negative
     brands: list[str]
+    sources: list[dict] = []
 
 
 class PlatformMetric(BaseModel):
@@ -45,6 +62,44 @@ class Leaderboard(BaseModel):
     by_avg_rank: list[LeaderboardRow]
 
 
+class CitationSource(BaseModel):
+    site: str
+    category: str
+    url: str
+    title: str
+    cite_count: int
+    questions: int
+    platforms: list[str]
+
+
+class ConversationAnswer(BaseModel):
+    platform: str
+    engine: str = "mock"
+    text: str
+    mentioned: bool
+    rank: int | None
+    sentiment: str
+    brands: list[str]
+
+
+class ConversationRecord(BaseModel):
+    question: str
+    intent: str
+    heat: int
+    mentioned_brands: list[str]
+    answers: list[ConversationAnswer]
+
+
+class PlatformInfo(BaseModel):
+    id: str
+    name: str
+    label: str
+    color: str
+    channels: list[str]
+    thinking_label: str
+    api_capable: bool
+
+
 class DiagnosisSummary(BaseModel):
     id: int
     brand: str
@@ -61,16 +116,18 @@ class DiagnosisSummary(BaseModel):
 
 
 class DiagnosisReport(DiagnosisSummary):
-    questions: list[str]
+    questions: list[QuestionItem]
     platforms: list[str]
     platform_metrics: list[PlatformMetric]
     leaderboard: Leaderboard
     answers: list[AnswerOut]
+    citations: list[CitationSource]
+    conversations: list[ConversationRecord]
 
 
 class ConfigOut(BaseModel):
     mock: bool
     provider: str
     model: str
-    platforms_available: list[str]
+    platforms: list[PlatformInfo]
     num_questions: int

@@ -1,10 +1,8 @@
 """模拟数据 Provider。
 
-当没有配置 ARK_API_KEY 时使用：用确定性的伪随机生成可信的问题与回答，
-让整条「生成问题 → 多平台提问 → 分析回答 → 汇总指标」流程和前端界面在
-没有任何外部 API 的情况下也能完整跑通。
-
-其中 `heuristic_analyze` 还会在真实模型分析失败时作为兜底解析器。
+没有配置 ARK_API_KEY 时使用：用确定性的伪随机生成可信的问题与回答，
+让整条「生成问题 → 多平台提问 → 分析回答 → 汇总指标」流程在没有任何
+外部 API 时也能完整跑通。`heuristic_analyze` 也作为真实分析失败时的兜底。
 """
 from __future__ import annotations
 
@@ -14,10 +12,11 @@ from random import Random
 
 from ..scoring import is_same_brand
 
-# 牙科 / 口腔行业的拟真品牌池（让演示效果贴近截图）
+# 牙科 / 口腔行业的拟真品牌池（贴近截图）
 _DENTAL_POOL = [
     "北京大学口腔医院", "四川大学华西口腔医院", "劲松口腔", "北大口腔", "爱牙仕",
     "泰康拜博口腔", "美奥口腔", "拜尔口腔", "维乐口腔", "中诺口腔",
+    "南昌大学附属口腔医院", "时代天使", "隐适美", "瑞尔齿科",
 ]
 
 # 通用品牌前缀（拼接行业后缀，适配任意行业）
@@ -28,13 +27,28 @@ _GENERIC_PREFIX = [
 
 _POSITIVE_WORDS = ("推荐", "优秀", "领先", "靠谱", "知名", "专业", "口碑好", "实力强")
 _NEGATIVE_WORDS = ("不推荐", "较差", "避免", "不建议", "问题较多", "差评", "谨慎")
-
 _DENTAL_KEYWORDS = ("口腔", "牙", "齿")
+
+# 意图分类关键词
+_COMPARE_KW = ("性价比", "对比", "排名", "选择", "更高", "更好", "最好", "比较", "哪家更", "更靠谱")
 
 
 def _seed(*parts: str) -> int:
-    raw = "|".join(parts).encode("utf-8")
-    return int(hashlib.md5(raw).hexdigest()[:12], 16)
+    return int(hashlib.md5("|".join(parts).encode("utf-8")).hexdigest()[:12], 16)
+
+
+def classify_intent(text: str) -> str:
+    return "对比/选择" if any(k in text for k in _COMPARE_KW) else "咨询/查询"
+
+
+def estimate_heat(text: str) -> int:
+    """问题热度（搜索量近似）：3000~19999 的确定性伪随机值。"""
+    rnd = Random(_seed("heat", text))
+    return rnd.randint(3000, 19999)
+
+
+def question_meta(text: str) -> dict:
+    return {"text": text, "intent": classify_intent(text), "heat": estimate_heat(text)}
 
 
 def _industry_suffix(industry: str | None) -> str:
@@ -70,18 +84,18 @@ _QUESTION_TEMPLATES = [
 ]
 
 
-def mock_questions(brand: str, industry: str | None, n: int) -> tuple[str, list[str]]:
+def mock_questions(brand: str, industry: str | None, n: int) -> tuple[str, list[dict]]:
     ind = industry or _industry_suffix(industry)
     rnd = Random(_seed("q", brand, ind))
     pool = _QUESTION_TEMPLATES.copy()
     rnd.shuffle(pool)
-    qs = [pool[i % len(pool)].format(ind=ind) for i in range(n)]
-    return ind, qs
+    items = [question_meta(pool[i % len(pool)].format(ind=ind)) for i in range(n)]
+    return ind, items
 
 
 # —— 回答生成 ——
-def mock_answer(brand: str, industry: str | None, question: str, platform: str) -> str:
-    rnd = Random(_seed("a", brand, question, platform))
+def mock_answer(brand: str, industry: str | None, question: str, platform_key: str) -> str:
+    rnd = Random(_seed("a", brand, question, platform_key))
     pool = [b for b in competitor_pool(brand, industry) if not is_same_brand(b, brand)]
     rnd.shuffle(pool)
     k = rnd.randint(3, 6)
@@ -102,7 +116,7 @@ def mock_answer(brand: str, industry: str | None, question: str, platform: str) 
 
 
 # —— 启发式分析（兼作真实分析失败时的兜底）——
-_LIST_RE = re.compile(r"^\s*(?:\d+[.、)]|[-*•])\s*([^：:，,。\n（(]+)")
+_LIST_RE = re.compile(r"^\s*(?:\d+[.、)]|[-*•])\s*\**([^：:，,。\n（(*]+)")
 
 
 def _sentiment_of(text: str, brand: str) -> str:
@@ -123,7 +137,6 @@ def heuristic_analyze(brand: str, text: str, known_brands: list[str] | None = No
             if name:
                 brands.append(name)
 
-    # 没有列表结构时，退化为在已知品牌池里按出现位置排序
     if not brands and known_brands:
         positions = [(text.find(b), b) for b in known_brands if b in text]
         brands = [b for pos, b in sorted(positions) if pos != -1]
