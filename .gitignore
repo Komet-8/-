@@ -17,3 +17,8 @@ dist/
 *.log
 .idea/
 .vscode/
+
+# ===== worker（本地采集产物，含外部页面内容，勿入库）=====
+worker/captures/
+worker/.venv/
+.aidso-chrome/
