@@ -51,36 +51,56 @@ class GenericAdapter(BaseAdapter):
         self.page.keyboard.press(self.spec.get("send_key", "Enter"))
 
     def wait_complete(self, timeout_ms: int = 120_000) -> None:
+        """等待流式回答结束。
+
+        策略（语言/平台无关，几乎免校准）：
+        先可选地等"停止"按钮出现以确认开始生成；随后轮询回答容器的文本长度，
+        当连续若干轮不再增长即判定完成。stop_text 只作"开始信号"，不强依赖。
+        """
         stop_text = self.spec.get("stop_text")
         if stop_text:
-            # 先等"停止"出现(开始生成)，再等它消失(生成结束)
-            try:
-                self.page.get_by_text(stop_text, exact=False).wait_for(timeout=15_000)
+            try:  # 等生成开始（出现"停止/Stop"），最多等 12s
+                self.page.get_by_text(stop_text, exact=False).wait_for(timeout=12_000)
             except Exception:
                 pass
+
+        answer_sel = self.spec["answer"]
+        poll_ms = 1_000
+        stable_needed = 3          # 连续 3 轮(~3s)文本不变即认为完成
+        max_rounds = max(1, timeout_ms // poll_ms)
+        last = ""
+        stable = 0
+        for _ in range(int(max_rounds)):
             try:
-                self.page.get_by_text(stop_text, exact=False).wait_for(
-                    state="hidden", timeout=timeout_ms
-                )
-                return
+                txt = self.page.locator(answer_sel).last.inner_text()
             except Exception:
-                pass
-        # 兜底：等网络空闲 + 固定等待
-        try:
-            self.page.wait_for_load_state("networkidle", timeout=timeout_ms)
-        except Exception:
-            pass
-        self.page.wait_for_timeout(2_000)
+                txt = ""
+            if txt and txt == last:
+                stable += 1
+                if stable >= stable_needed:
+                    return
+            else:
+                stable = 0
+                last = txt
+            self.page.wait_for_timeout(poll_ms)
+        # 超时则带着已有内容返回，由 collect 决定
 
     def collect(self) -> ScrapeResult:
         answer = self.page.locator(self.spec["answer"]).last
-        text = answer.inner_text()
-        sources: list[dict] = []
+        try:
+            text = answer.inner_text()
+        except Exception:
+            text = ""
+
+        # 引用来源：可选 page 级作用域（某些平台来源在回答容器外的"参考"面板）
         cite_sel = self.spec.get("citation")
+        cite_scope = self.spec.get("citation_scope", "answer")  # answer | page
+        scope = self.page if cite_scope == "page" else answer
+        sources: list[dict] = []
         if cite_sel:
             try:
                 seen = set()
-                for a in answer.locator(cite_sel).all():
+                for a in scope.locator(cite_sel).all():
                     href = a.get_attribute("href") or ""
                     if href.startswith("http") and href not in seen:
                         seen.add(href)
@@ -89,6 +109,7 @@ class GenericAdapter(BaseAdapter):
                         )
             except Exception:
                 pass
+
         try:
             html = answer.inner_html()
         except Exception:

@@ -5,13 +5,14 @@
     "input": "textarea",
     "send": null,
     "send_key": "Enter",
-    "thinking_toggle_text": "深度思考",
-    "thinking_active_class": "active",
-    "stop_text": "停止",
-    "answer": "div.markdown, div[class*='message'], div[class*='Message']",
+    "thinking_toggle_text": "DeepThink",
+    "thinking_active_class": "ds-toggle-button--selected",
+    "stop_text": null,
+    "answer": "div[class*='ds-markdown'], div[class*='markdown']",
     "citation": "a[href^='http']",
+    "citation_scope": "page",
     "ready": true,
-    "_comment": "选择器为初始猜测，请用 `python run.py --inspect --platform deepseek` 采集真实页面后校准。重点核对：input(输入框)、stop_text(生成中按钮文案)、answer(回答容器)、citation(引用角标链接)。"
+    "_comment": "已按真实页面校准(2026-05英文界面)：思考开关=DeepThink，选中类=ds-toggle-button--selected，回答容器=ds-markdown，引用来源在回答外的参考面板故用 page 作用域。完成判定改为稳定文本轮询，不依赖停止按钮。"
   },
   "doubao": {
     "name": "豆包",
