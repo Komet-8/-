@@ -50,7 +50,7 @@ if gh repo view "$OWNER/$REPO_NAME" >/dev/null 2>&1; then
   say "使用已有私有仓库 $URL"
 else
   say "创建私有仓库 $URL"
-  gh repo create "$OWNER/$REPO_NAME" --private --description "Mac 桌面「$FOLDER_NAME」文件夹自动同步" >/dev/null
+  gh repo create "$OWNER/$REPO_NAME" --private --description "Mac 桌面「${FOLDER_NAME}」文件夹自动同步" >/dev/null
 fi
 
 # ---------- 本地文件夹 ----------
@@ -58,7 +58,7 @@ if [ -d "$SYNC_DIR/.git" ]; then
   cur="$(git -C "$SYNC_DIR" remote get-url origin 2>/dev/null || true)"
   case "$cur" in
     *"github.com/$OWNER/$REPO_NAME" | *"github.com/$OWNER/$REPO_NAME.git" | *"github.com:$OWNER/$REPO_NAME.git") ;;
-    *) die "$SYNC_DIR 已经关联了别的仓库（$cur）。换个 FOLDER_NAME 再试。" ;;
+    *) die "$SYNC_DIR 已经关联了别的仓库（${cur}）。换个 FOLDER_NAME 再试。" ;;
   esac
 elif [ -e "$SYNC_DIR" ]; then
   die "$SYNC_DIR 已存在且不是同步文件夹，为免覆盖停止。先改名或换个 FOLDER_NAME。"
@@ -87,9 +87,9 @@ EOF
   cat > README.md <<EOF
 # $REPO_NAME
 
-这个私有仓库和 Mac 桌面上的「$FOLDER_NAME」文件夹自动双向同步：
+这个私有仓库和 Mac 桌面上的「${FOLDER_NAME}」文件夹自动双向同步：
 
-- 拖进桌面「$FOLDER_NAME」的文件/文件夹，几十秒内出现在这里，路径和名字一样。
+- 拖进桌面「${FOLDER_NAME}」的文件/文件夹，几十秒内出现在这里，路径和名字一样。
 - 这里 \`main\` 分支上的改动，约 2 分钟内同步回桌面文件夹。
 - 超过 95MB 的单个文件、自带 \`.git\` 的项目文件夹不会上传（会弹通知）。
 EOF
@@ -104,7 +104,7 @@ if [ -L "$DESKTOP_LINK" ] || [ ! -e "$DESKTOP_LINK" ]; then
   ln -sfn "$SYNC_DIR" "$DESKTOP_LINK" \
     || say "⚠️ 没能在桌面放快捷方式（终端没有桌面权限）。可以在访达里按住 Option+Command 把 $SYNC_DIR 拖到桌面。"
 else
-  say "⚠️ 桌面上已有同名的「$FOLDER_NAME」，没有覆盖它；真正同步的是 $SYNC_DIR"
+  say "⚠️ 桌面上已有同名的「${FOLDER_NAME}」，没有覆盖它；真正同步的是 $SYNC_DIR"
 fi
 
 # ---------- 同步脚本 ----------
@@ -281,7 +281,7 @@ launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null
 rm -f "$PLIST"
 [ -L "$DESKTOP_LINK" ] && rm -f "$DESKTOP_LINK"
 rm -rf "$BASE"
-echo "已停止自动同步。文件仍在 $SYNC_DIR，GitHub 仓库未改动。"
+echo "已停止自动同步。文件仍在 ${SYNC_DIR}，GitHub 仓库未改动。"
 EOF
 chmod +x "$BASE/uninstall.sh"
 
@@ -311,7 +311,7 @@ launchctl bootstrap "gui/$(id -u)" "$PLIST"
 cat <<EOF
 
 ✅ 装好了
-  桌面文件夹：~/Desktop/$FOLDER_NAME   （实际位置 $SYNC_DIR）
+  桌面文件夹：~/Desktop/$FOLDER_NAME   （实际位置 ${SYNC_DIR}）
   GitHub 私有仓库：$URL
 
   拖进去的文件/文件夹，几十秒内出现在 GitHub 同名路径下；
