@@ -1,0 +1,53 @@
+name: ZiLv
+options:
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  ZiLv:
+    type: application
+    platform: iOS
+    sources: [App, Shared]
+    scheme: {}
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: 自律监督
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: App/App.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+        com.apple.security.application-groups: [group.com.komet8.zilv]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.komet8.zilv
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - target: ZiLvMonitor
+  ZiLvMonitor:
+    type: app-extension
+    platform: iOS
+    sources: [Monitor, Shared]
+    info:
+      path: Monitor/Info.plist
+      properties:
+        CFBundleDisplayName: 自律监督
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.deviceactivity.monitor-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).Monitor
+    entitlements:
+      path: Monitor/Monitor.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+        com.apple.security.application-groups: [group.com.komet8.zilv]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.komet8.zilv.monitor
